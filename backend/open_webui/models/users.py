@@ -3,8 +3,9 @@ from typing import Optional
 
 from open_webui.internal.db import Base, JSONField, get_db
 from open_webui.models.chats import Chats
+from open_webui.models.groups import GroupService
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Column, String, Text
+from sqlalchemy import BigInteger, Column, String, Text, Integer
 
 ####################
 # User DB Schema
@@ -27,6 +28,16 @@ class User(Base):
     api_key = Column(String, nullable=True, unique=True)
     settings = Column(JSONField, nullable=True)
     info = Column(JSONField, nullable=True)
+
+    # Subscription
+    subscription_status = Column(String)
+    subscription_ends_at = Column(BigInteger)
+    stripe_customer_id = Column(String)
+    card_last4 = Column(String, nullable=True)
+    card_brand = Column(String, nullable=True)
+    card_exp_month = Column(Integer, nullable=True)
+    card_exp_year = Column(Integer, nullable=True)
+    
 
     oauth_sub = Column(Text, unique=True)
 
@@ -51,6 +62,15 @@ class UserModel(BaseModel):
     api_key: Optional[str] = None
     settings: Optional[UserSettings] = None
     info: Optional[dict] = None
+
+    # Subscription
+    subscription_status: Optional[str] = None
+    subscription_ends_at: Optional[int] = None
+    stripe_customer_id: Optional[str] = None
+    card_last4: Optional[str] = None
+    card_brand: Optional[str] = None
+    card_exp_month: Optional[int] = None
+    card_exp_year: Optional[int] = None
 
     oauth_sub: Optional[str] = None
 

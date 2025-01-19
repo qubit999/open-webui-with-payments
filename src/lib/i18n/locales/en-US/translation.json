@@ -1,4 +1,10 @@
 {
+	"Cancel Subscription": "Cancel Subscription",
+	"Subscribe": "Subscribe",
+	"Subscription successful": "Subscription successful",
+	"An error occurred while subscribing": "An error occurred while subscribing",
+	"Subscription cancelled": "Subscription cancelled",
+	"An error occurred while cancelling subscription": "An error occurred while cancelling subscription",  
 	"-1 for no limit, or a positive integer for a specific limit": "",
 	"'s', 'm', 'h', 'd', 'w' or '-1' for no expiration.": "",
 	"(e.g. `sh webui.sh --api --api-auth username_password`)": "",

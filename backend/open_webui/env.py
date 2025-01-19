@@ -6,6 +6,7 @@ import pkgutil
 import sys
 import shutil
 from pathlib import Path
+import stripe
 
 import markdown
 from bs4 import BeautifulSoup
@@ -30,6 +31,14 @@ try:
     load_dotenv(find_dotenv(str(BASE_DIR / ".env")))
 except ImportError:
     print("dotenv not installed, skipping...")
+
+####################################
+# STRIPE
+####################################
+
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+stripe_price_id = os.environ.get("STRIPE_PRICE_ID", "")
+SUBSCRIBER_GROUP_NAME = os.getenv("SUBSCRIBER_GROUP_NAME", "")
 
 DOCKER = os.environ.get("DOCKER", "False").lower() == "true"
 

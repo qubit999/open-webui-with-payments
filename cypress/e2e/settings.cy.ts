@@ -61,3 +61,12 @@ describe('Settings', () => {
 		});
 	});
 });
+
+describe('Subscription', () => {
+	it('user can subscribe and cancel subscription', () => {
+	  cy.loginAdmin();
+	  cy.visit('/settings/account');
+	  cy.get('button').contains('Subscribe').click();
+	  cy.get('button').contains('Cancel Subscription').click();
+	});
+  });

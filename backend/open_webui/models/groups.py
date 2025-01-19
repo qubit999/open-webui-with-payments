@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from typing import Optional
+from typing import Optional, List
 import uuid
 
 from open_webui.internal.db import Base, get_db
@@ -12,6 +12,7 @@ from open_webui.models.files import FileMetadataResponse
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, String, Text, JSON, func
+from sqlalchemy.exc import SQLAlchemyError
 
 
 log = logging.getLogger(__name__)
@@ -53,10 +54,17 @@ class GroupModel(BaseModel):
     meta: Optional[dict] = None
 
     permissions: Optional[dict] = None
-    user_ids: list[str] = []
+    user_ids: Optional[List[str]] = []
 
     created_at: int  # timestamp in epoch
     updated_at: int  # timestamp in epoch
+
+    @classmethod
+    def model_validate(cls, group):
+        group_dict = group.__dict__.copy()
+        if group_dict['user_ids'] is None:
+            group_dict['user_ids'] = []
+        return cls(**group_dict)
 
 
 ####################
@@ -189,5 +197,99 @@ class GroupTable:
             except Exception:
                 return False
 
-
 Groups = GroupTable()
+
+class GroupService:
+    def get_group_by_id(self, id: str) -> Optional[GroupModel]:
+        try:
+            with get_db() as db:
+                group = db.query(Group).filter_by(id=id).first()
+                return GroupModel.model_validate(group) if group else None
+        except Exception:
+            return None
+    
+    def update_group_by_id(self, id: str, form_data: GroupUpdateForm) -> Optional[GroupModel]:
+        try:
+            with get_db() as db:
+                update_data = form_data.dict(exclude_unset=True)
+                db.query(Group).filter_by(id=id).update(
+                    {
+                        **update_data,
+                        "updated_at": int(time.time()),
+                    }
+                )
+                db.commit()
+                return self.get_group_by_id(id=id)
+            return None
+        except SQLAlchemyError as e:
+            log.error(f"Error updating group {id}: {e}")
+            return None
+
+    def get_group_id_by_name(self, name: str) -> Optional[str]:
+        try:
+            with get_db() as db:
+                group = db.query(Group).filter_by(name=name).first()
+                return group.id if group else None
+        except SQLAlchemyError as e:
+            log.error(f"Error fetching group by name {name}: {e}")
+            return None
+
+    def add_user_to_group(self, group_id: str, user_id: str) -> bool:
+        try:
+            with get_db() as db:
+                group = db.query(Group).filter_by(id=group_id).first()
+                if group:
+                    log.info(f"Current user_ids type: {type(group.user_ids)}")
+                    log.info(f"Current user_ids: {group.user_ids}")
+                    if group.user_ids is None:
+                        group.user_ids = []
+                    if user_id not in group.user_ids:
+                        group.user_ids.append(user_id)
+                        db.query(Group).filter_by(id=group_id).update(
+                            {
+                                "user_ids": group.user_ids,
+                                "updated_at": int(time.time()),
+                            }
+                        )
+                        db.commit()
+                        db.refresh(group)
+                        log.info(f"Post-commit user_ids: {group.user_ids}")
+                        return True
+                    else:
+                        log.warning(f"User {user_id} already in group {group_id}")
+                else:
+                    log.warning(f"Group {group_id} not found")
+                return False
+        except SQLAlchemyError as e:
+            log.error(f"Error adding user {user_id} to group {group_id}: {e}")
+            return False
+
+    def remove_user_from_group(self, group_id: str, user_id: str) -> bool:
+        try:
+            with get_db() as db:
+                group = db.query(Group).filter_by(id=group_id).first()
+                if group:
+                    log.info(f"Current user_ids type: {type(group.user_ids)}")
+                    log.info(f"Current user_ids: {group.user_ids}")
+                    if group.user_ids is None:
+                        group.user_ids = []
+                    if user_id in group.user_ids:
+                        group.user_ids.remove(user_id)
+                        db.query(Group).filter_by(id=group_id).update(
+                            {
+                                "user_ids": group.user_ids,
+                                "updated_at": int(time.time()),
+                            }
+                        )
+                        db.commit()
+                        db.refresh(group)
+                        log.info(f"Post-commit user_ids: {group.user_ids}")
+                        return True
+                    else:
+                        log.warning(f"User {user_id} not in group {group_id}")
+                else:
+                    log.warning(f"Group {group_id} not found")
+                return False
+        except SQLAlchemyError as e:
+            log.error(f"Error removing user {user_id} to group {group_id}: {e}")
+            return False

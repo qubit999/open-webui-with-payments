@@ -13,6 +13,12 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 
+	import { loadStripe } from '@stripe/stripe-js';
+	const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+	let cardElement;
+	let stripe;
+	let elements;
+
 	const i18n = getContext('i18n');
 
 	export let saveHandler: Function;
@@ -69,6 +75,11 @@
 	};
 
 	onMount(async () => {
+		stripe = await stripePromise;
+		elements = stripe.elements();
+		cardElement = elements.create('card');
+		cardElement.mount('#card-element');
+
 		name = $user.name;
 		profileImageUrl = $user.profile_image_url;
 		webhookUrl = $settings?.notifications?.webhook_url ?? '';
@@ -77,7 +88,95 @@
 			console.log(error);
 			return '';
 		});
+
+		await fetchUserData();
 	});
+
+	async function fetchUserData() {
+		try {
+		const response = await fetch('/api/v1/users/user/user_data', {
+			method: 'GET',
+			headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${localStorage.getItem('token')}`,
+			},
+		});
+		if (response.ok) {
+			const data = await response.json();
+			user.set(data);
+		} else {
+			console.error('Failed to fetch user data');
+		}
+		} catch (error) {
+		console.error('Error fetching user data:', error);
+		}
+  	}
+
+  async function subscribeUser() {
+    try {
+      const { paymentMethod, error } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      const response = await fetch('/api/v1/users/user/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ paymentMethodId: paymentMethod.id }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success($i18n.t('Subscription successful'));
+		console.log(data);
+		console.log(data);
+		console.log(user);
+		console.log(user);
+        user.update(u => ({ ...u, subscription_status: data.subscription_status, subscription_ends_at: data.subscription_ends_at }));
+        await fetchUserData();
+
+      } else {
+        toast.error(data.detail || $i18n.t('An error occurred'));
+      }
+    } catch (error) {
+		toast.error($i18n.t('An error occurred while subscribing'));
+      	console.error(error);
+    }
+  }
+
+  async function cancelSubscription() {
+    try {
+      const response = await fetch('/api/v1/users/user/cancel_subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success($i18n.t('Subscription cancelled'));
+
+        user.update(u => ({ ...u, subscription_status: 'inactive', subscription_ends_at: null }));
+        await fetchUserData();
+
+      } else {
+        toast.error(data.detail || $i18n.t('An error occurred'));
+      }
+    } catch (error) {
+		toast.error($i18n.t('An error occurred while cancelling subscription'));
+      	console.error(error);
+    }
+  }
+
 </script>
 
 <div class="flex flex-col h-full justify-between text-sm">
@@ -421,6 +520,20 @@
 				{/if}
 			</div>
 		{/if}
+	</div>
+
+	<!-- Subscription Buttons -->
+	<div id="card-element"></div>
+	<div class="subscription-buttons">
+	{#if $user.subscription_status === 'active'}
+		<button on:click={cancelSubscription} class="btn btn-danger">
+			{$i18n.t('Cancel Subscription')}
+		</button>
+	{:else}
+		<button on:click={subscribeUser} class="btn btn-primary">
+			{$i18n.t('Subscribe')}
+		</button>
+	{/if}
 	</div>
 
 	<div class="flex justify-end pt-3 text-sm font-medium">

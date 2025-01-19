@@ -25,6 +25,129 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 router = APIRouter()
 
 ############################
+# Stripe Payments
+############################
+
+from open_webui.env import stripe_price_id, SUBSCRIBER_GROUP_NAME
+from open_webui.models.groups import Groups, GroupUpdateForm, GroupService
+from datetime import datetime, timedelta, timezone
+import stripe
+
+@router.post("/user/subscribe", response_model=Optional[dict])
+async def subscribe_user(request: Request, user=Depends(get_verified_user)):
+    user = Users.get_user_by_id(user.id)
+    if user:
+        try:
+            data = await request.json()
+            paymentMethodId = data.get('paymentMethodId')
+            if not paymentMethodId:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Payment method ID is required",
+                )
+
+            if not user.stripe_customer_id:
+                customer = stripe.Customer.create(email=user.email)
+                user = Users.update_user_by_id(user.id, {"stripe_customer_id": customer.id})
+                if not user:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Failed to update user with Stripe customer ID",
+                    )
+
+            stripe.PaymentMethod.attach(
+                paymentMethodId,
+                customer=user.stripe_customer_id,
+            )
+            stripe.Customer.modify(
+                user.stripe_customer_id,
+                invoice_settings={
+                    "default_payment_method": paymentMethodId,
+                },
+            )
+
+            subscription = stripe.Subscription.create(
+                customer=user.stripe_customer_id,
+                items=[{"price": stripe_price_id}],
+                expand=["latest_invoice.payment_intent"]
+            )
+
+            payment_method = stripe.PaymentMethod.retrieve(paymentMethodId)
+            card = payment_method.card
+
+            subscription_ends_at = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
+            updated_user = Users.update_user_by_id(user.id, {
+                "subscription_status": "active",
+                "subscription_ends_at": subscription_ends_at,
+                "card_last4": card.last4,
+                "card_brand": card.brand,
+                "card_exp_month": card.exp_month,
+                "card_exp_year": card.exp_year,
+            })
+            if not updated_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to update user subscription details",
+                )
+
+            # Add user to the subscriber group
+            group_service = GroupService()
+            group_id = group_service.get_group_id_by_name(SUBSCRIBER_GROUP_NAME)
+            if group_id:
+                group_service.add_user_to_group(group_id, user.id)
+
+            return {"subscription_status": updated_user.subscription_status, "subscription_ends_at": updated_user.subscription_ends_at}
+        except Exception as e:
+            log.error(f"Error subscribing user {user.id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.USER_NOT_FOUND,
+        )
+
+@router.post("/user/cancel_subscription", response_model=Optional[dict])
+async def cancel_subscription(user=Depends(get_verified_user)):
+    user = Users.get_user_by_id(user.id)
+    if user:
+        try:
+            stripe_subscriptions = stripe.Subscription.list(customer=user.stripe_customer_id)
+            for subscription in stripe_subscriptions.auto_paging_iter():
+                stripe.Subscription.delete(subscription.id)
+            
+            updated_user = Users.update_user_by_id(user.id, {
+                "subscription_status": "inactive",
+                "subscription_ends_at": None,
+            })
+            if not updated_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to update user subscription details",
+                )
+
+            # Remove user from the subscriber group
+            group_service = GroupService()
+            group_id = group_service.get_group_id_by_name(SUBSCRIBER_GROUP_NAME)
+            if group_id:
+                group_service.remove_user_from_group(group_id, user.id)
+
+            return {"subscription_status": updated_user.subscription_status, "subscription_ends_at": updated_user.subscription_ends_at}
+        except Exception as e:
+            log.error(f"Error cancelling subscription for user {user.id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.USER_NOT_FOUND,
+        )
+
+############################
 # GetUsers
 ############################
 
@@ -160,7 +283,19 @@ async def get_user_info_by_session_user(user=Depends(get_verified_user)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.USER_NOT_FOUND,
         )
-
+    
+@router.get("/user/user_data", response_model=Optional[UserModel])
+async def get_user_data_by_session_user(user=Depends(get_verified_user)):
+    # Make sure this is not conflicting with any frontend route
+    db_user = Users.get_user_by_id(user.id)
+    if db_user:
+        # Convert the SQLAlchemy user object to a Pydantic model
+        return UserModel.model_validate(db_user)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.USER_NOT_FOUND
+        )
 
 ############################
 # UpdateUserInfoBySessionUser
