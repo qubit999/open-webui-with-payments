@@ -1,6 +1,5 @@
 # Open WebUI with Payment (Subscription) 👋
 
-## Attention
 **Attention:** This is a fork of the official Open WebUI repository. It is currently not very extensively tested but it supports Stripe.com payments. Check the .env.example file.
 
 ## Setup Guide (for developers)
