@@ -1,10 +1,10 @@
 # Open WebUI with Payment (Subscription) 👋
 
-**Attention:** This is a fork of the official Open WebUI repository. It is currently not very extensively tested but it supports Stripe.com payments. Check the .env.example file.
+**Attention:** This is a fork of the official Open WebUI repository. It is currently not very extensively tested but it supports Stripe.com payments. Check the `.env.example` file.
 
 ## Setup Guide (for developers)
 
-Start as usual. Configure a .env file with the parameters provided in `.env.example` (set Stripe.com keys and copy the price id of your subscription product from Stripe.com). When you started the backend, add an admin account and add a group that you specified with `SUBSCRIBER_GROUP_NAME` in your `.env` file. Set the all group permissions. For your private premium models, set up the group access in the admin panel. Good luck and have fun!
+Start as usual. Configure a .env file with the parameters provided in `.env.example` (set Stripe.com keys and copy the price id of your subscription product from Stripe.com). When you started the backend, add an admin account and add a group that you specified with `SUBSCRIBER_GROUP_NAME` in your `.env` file. Set all group permissions. For your private premium models, set up the group access in the admin panel. Good luck and have fun!
 
 ![GitHub stars](https://img.shields.io/github/stars/open-webui/open-webui?style=social)
 ![GitHub forks](https://img.shields.io/github/forks/open-webui/open-webui?style=social)
