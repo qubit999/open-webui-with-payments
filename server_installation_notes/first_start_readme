@@ -1,0 +1,22 @@
+# Install Node.js
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm ls
+nvm install v22.0.0
+
+# Install Miniconda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
+# Don't forget
+cp .env.example .env
+# Edit .env
+npm install
+# Very important!!!
+npm run build 
+# Then in /backend https://docs.openwebui.com/getting-started/advanced-topics/development
+conda create --name open-webui python=3.11
+conda activate open-webui
+pip install -r requirements.txt -U
+chmod +x start.sh
+./start.sh # for testing

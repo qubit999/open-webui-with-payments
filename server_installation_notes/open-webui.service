@@ -1,0 +1,16 @@
+# sudo nano /etc/systemd/system/open-webui.service
+[Unit]
+Description=Start Open WebUI Backend with Payments
+After=network.target
+
+[Service]
+Type=simple
+User=webuiuser
+WorkingDirectory=/home/webuiuser/open-webui-with-payments/backend
+ExecStart=/bin/bash -c "source /home/webuiuser/miniconda3/etc/profile.d/conda.sh && conda activate open-webui && ./start.sh"
+Restart=always
+RestartSec=5
+Environment="PATH=/opt/conda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[Install]
+WantedBy=multi-user.target
