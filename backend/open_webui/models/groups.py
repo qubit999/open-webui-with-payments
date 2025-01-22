@@ -245,6 +245,7 @@ class GroupService:
         except Exception:
             return None
     
+    # not used anymore
     def update_group_by_id(self, id: str, form_data: GroupUpdateForm, overwrite: bool = False) -> Optional[GroupModel]:
         try:
             with get_db() as db:
