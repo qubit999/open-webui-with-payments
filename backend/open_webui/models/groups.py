@@ -88,12 +88,11 @@ class GroupResponse(BaseModel):
 class GroupForm(BaseModel):
     name: str
     description: str
+    permissions: Optional[dict] = None
 
 
 class GroupUpdateForm(GroupForm):
-    permissions: Optional[dict] = None
     user_ids: Optional[list[str]] = None
-    admin_ids: Optional[list[str]] = None
 
 
 class GroupTable:
@@ -103,7 +102,7 @@ class GroupTable:
         with get_db() as db:
             group = GroupModel(
                 **{
-                    **form_data.model_dump(),
+                    **form_data.model_dump(exclude_none=True),
                     "id": str(uuid.uuid4()),
                     "user_id": user_id,
                     "created_at": int(time.time()),
@@ -197,6 +196,44 @@ class GroupTable:
             except Exception:
                 return False
 
+    def remove_user_from_all_groups(self, user_id: str) -> bool:
+        with get_db() as db:
+            try:
+                groups = self.get_groups_by_member_id(user_id)
+
+                for group in groups:
+                    group.user_ids.remove(user_id)
+                    db.query(Group).filter_by(id=group.id).update(
+                        {
+                            "user_ids": group.user_ids,
+                            "updated_at": int(time.time()),
+                        }
+                    )
+                    db.commit()
+
+                return True
+            except Exception:
+                return False
+
+    def remove_user_from_all_groups(self, user_id: str) -> bool:
+        with get_db() as db:
+            try:
+                groups = self.get_groups_by_member_id(user_id)
+
+                for group in groups:
+                    group.user_ids.remove(user_id)
+                    db.query(Group).filter_by(id=group.id).update(
+                        {
+                            "user_ids": group.user_ids,
+                            "updated_at": int(time.time()),
+                        }
+                    )
+                    db.commit()
+
+                return True
+            except Exception:
+                return False
+
 Groups = GroupTable()
 
 class GroupService:
@@ -208,10 +245,10 @@ class GroupService:
         except Exception:
             return None
     
-    def update_group_by_id(self, id: str, form_data: GroupUpdateForm) -> Optional[GroupModel]:
+    def update_group_by_id(self, id: str, form_data: GroupUpdateForm, overwrite: bool = False) -> Optional[GroupModel]:
         try:
             with get_db() as db:
-                update_data = form_data.dict(exclude_unset=True)
+                update_data = form_data.dict(exclude_none=True)
                 db.query(Group).filter_by(id=id).update(
                     {
                         **update_data,
