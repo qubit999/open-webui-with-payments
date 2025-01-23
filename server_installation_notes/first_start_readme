@@ -20,3 +20,9 @@ conda activate open-webui
 pip install -r requirements.txt -U
 chmod +x start.sh
 ./start.sh # for testing
+
+# Run updates with update.sh 
+# Don't forget python dependencies in /backend: pip install -r requirements.txt
+service open-webui stop
+./update.sh
+service open-webui start
