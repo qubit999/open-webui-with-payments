@@ -1878,15 +1878,15 @@
 		<Navbar
 			bind:this={navbarElement}
 			chat={{
-				id: $chatId,
-				chat: {
-					title: $chatTitle,
-					models: selectedModels,
-					system: $settings.system ?? undefined,
-					params: params,
-					history: history,
-					timestamp: Date.now()
-				}
+			id: $chatId,
+			chat: {
+				title: $chatTitle,
+				models: selectedModels,
+				system: $settings.system ?? undefined,
+				params: params,
+				history: history,
+				timestamp: Date.now()
+			}
 			}}
 			title={$chatTitle}
 			bind:selectedModels
