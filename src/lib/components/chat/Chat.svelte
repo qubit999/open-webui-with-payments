@@ -1875,6 +1875,7 @@
 			/>
 		{/if}
 
+		{#if chat && chat.chat}
 		<Navbar
 			bind:this={navbarElement}
 			chat={{
@@ -1893,6 +1894,15 @@
 			shareEnabled={!!history.currentId}
 			{initNewChat}
 		/>
+		{:else}
+		<Navbar
+			bind:this={navbarElement}
+			chat={{ id: $chatId }}
+			title={$chatTitle}
+			bind:selectedModels
+			{initNewChat}
+		/>
+		{/if}
 
 		<PaneGroup direction="horizontal" class="w-full h-full">
 			<Pane defaultSize={50} class="h-full flex w-full relative">
